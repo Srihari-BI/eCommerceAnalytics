@@ -1,0 +1,197 @@
+-- eCommerce Database Analysis
+-- Srihari G
+-- June 2024
+
+
+-- TASK 1
+-- Gsearch is a major driver for our business. Let's analyze the monthly trends for gsearch sessions and orders to illustrate growth.
+
+SELECT
+	EXTRACT(YEAR_MONTH FROM website_sessions.created_at) AS yearmonth,
+	COUNT(DISTINCT website_sessions.website_session_id) AS sessions,
+	COUNT(DISTINCT order_id) AS orders,
+	ROUND(COUNT(DISTINCT order_id) / COUNT(DISTINCT website_sessions.website_session_id) * 100.0, 2) AS conversion_rate
+FROM website_sessions
+	LEFT JOIN orders
+		ON website_sessions.website_session_id = orders.website_session_id
+WHERE utm_source = 'gsearch'
+	AND website_sessions.created_at < '2012-11-27'
+GROUP BY 1;
+
+-- TASK 2
+-- We need to see the monthly trend for gsearch, distinguishing between non-brand and brand campaigns.
+
+SELECT
+	DISTINCT utm_campaign,
+	utm_content
+FROM
+	website_sessions
+WHERE website_sessions.created_at < '2012-11-27';
+
+SELECT
+	EXTRACT(YEAR_MONTH FROM website_sessions.created_at) AS yearmonth,
+	COUNT(DISTINCT CASE WHEN utm_campaign = 'nonbrand' THEN website_sessions.website_session_id ELSE NULL END) AS nonbrand_sessions,
+	COUNT(DISTINCT CASE WHEN utm_campaign = 'nonbrand' THEN orders.order_id ELSE NULL END) AS nonbrand_orders,
+	ROUND(COUNT(DISTINCT CASE WHEN utm_campaign = 'nonbrand' THEN orders.order_id ELSE NULL END) / 
+		COUNT(DISTINCT CASE WHEN utm_campaign = 'nonbrand' THEN website_sessions.website_session_id ELSE NULL END) * 100.0, 2) AS nonbrand_cvr,
+	COUNT(DISTINCT CASE WHEN utm_campaign = 'brand' THEN website_sessions.website_session_id ELSE NULL END) AS brand_sessions,
+	COUNT(DISTINCT CASE WHEN utm_campaign = 'brand' THEN orders.order_id ELSE NULL END) AS brand_orders,
+	ROUND(COUNT(DISTINCT CASE WHEN utm_campaign = 'brand' THEN orders.order_id ELSE NULL END) / 
+		COUNT(DISTINCT CASE WHEN utm_campaign = 'brand' THEN website_sessions.website_session_id ELSE NULL END) * 100.0, 2) AS brand_cvr
+FROM website_sessions
+	LEFT JOIN orders
+		ON website_sessions.website_session_id = orders.website_session_id
+WHERE utm_source = 'gsearch'
+	AND website_sessions.created_at < '2012-11-27'
+GROUP BY 1;
+
+-- TASK 3
+-- Let's analyze non-brand gsearch monthly sessions and orders by device type to demonstrate our analytical capabilities.
+
+SELECT
+	EXTRACT(YEAR_MONTH FROM website_sessions.created_at) AS yearmonth,
+	COUNT(DISTINCT CASE WHEN device_type = 'desktop' THEN website_sessions.website_session_id ELSE NULL END) AS desktop_sessions,
+	COUNT(DISTINCT CASE WHEN device_type = 'desktop' THEN orders.order_id ELSE NULL END) AS desktop_orders,
+	ROUND(COUNT(DISTINCT CASE WHEN device_type = 'desktop' THEN orders.order_id ELSE NULL END) / 
+		COUNT(DISTINCT CASE WHEN device_type = 'desktop' THEN website_sessions.website_session_id ELSE NULL END) * 100.0, 2) AS desktop_cvr,
+	COUNT(DISTINCT CASE WHEN device_type = 'mobile' THEN website_sessions.website_session_id ELSE NULL END) AS mobile_sessions,
+	COUNT(DISTINCT CASE WHEN device_type = 'mobile' THEN orders.order_id ELSE NULL END) AS mobile_orders,
+	ROUND(COUNT(DISTINCT CASE WHEN device_type = 'mobile' THEN orders.order_id ELSE NULL END) / 
+		COUNT(DISTINCT CASE WHEN device_type = 'mobile' THEN website_sessions.website_session_id ELSE NULL END) * 100.0, 2) AS mobile_cvr
+FROM website_sessions
+	LEFT JOIN orders
+		ON website_sessions.website_session_id = orders.website_session_id
+WHERE utm_source = 'gsearch'
+	AND utm_campaign = 'nonbrand'
+	AND website_sessions.created_at < '2012-11-27'
+GROUP BY 1;
+
+-- TASK 4
+-- We need to examine monthly trends for Gsearch and other traffic sources to address any concerns about traffic distribution.
+
+SELECT DISTINCT
+	utm_source,
+	utm_campaign,
+	http_referer
+FROM website_sessions
+WHERE website_sessions.created_at < '2012-11-27';
+
+SELECT
+	EXTRACT(YEAR_MONTH FROM website_sessions.created_at) AS yearmonth,
+	COUNT(website_sessions.website_session_id) AS sessions,
+	COUNT(DISTINCT CASE WHEN utm_source = 'gsearch' AND http_referer IS NOT NULL THEN website_sessions.website_session_id ELSE NULL END) AS gsearch_paid_sessions,
+	COUNT(DISTINCT CASE WHEN utm_source = 'bsearch' AND http_referer IS NOT NULL THEN website_sessions.website_session_id ELSE NULL END) AS bsearch_paid_sessions,
+	COUNT(DISTINCT CASE WHEN utm_source IS NULL AND http_referer IS NOT NULL THEN website_sessions.website_session_id ELSE NULL END) AS organic_search_sessions,
+	COUNT(DISTINCT CASE WHEN utm_source IS NULL AND http_referer IS NULL THEN website_sessions.website_session_id ELSE NULL END) AS direct_type_sessions
+FROM website_sessions
+	LEFT JOIN orders
+		ON website_sessions.website_session_id = orders.website_session_id
+WHERE website_sessions.created_at < '2012-11-27'
+GROUP BY 1;
+
+-- TASK 5
+-- We will analyze session-to-order conversion rates by month to illustrate our website performance improvements over the first 8 months.
+
+SELECT
+	EXTRACT(YEAR_MONTH FROM website_sessions.created_at) AS yearmonth,
+	COUNT(DISTINCT website_sessions.website_session_id) AS sessions,
+	COUNT(DISTINCT order_id) AS orders,
+	ROUND(COUNT(DISTINCT order_id) / COUNT(DISTINCT website_sessions.website_session_id)*100.0, 2) AS conversion_rate
+FROM website_sessions
+	LEFT JOIN orders
+		ON website_sessions.website_session_id = orders.website_session_id
+WHERE website_sessions.created_at < '2012-11-27'
+GROUP BY 1;
+
+-- TASK 6
+-- For the gsearch lander test, let's estimate the revenue generated from the test. We'll use the CVR increase from the test (Jun 19 - Jul 28) and calculate incremental value.
+
+SELECT
+	website_pageviews.pageview_url AS landing_page,
+	COUNT(DISTINCT website_sessions.website_session_id) AS sessions,
+	COUNT(DISTINCT orders.order_id) AS orders,
+	ROUND(COUNT(DISTINCT orders.order_id) / COUNT(DISTINCT website_sessions.website_session_id) * 100.0,2) AS conversion_rate
+FROM website_sessions
+	INNER JOIN website_pageviews
+		ON website_sessions.website_session_id = website_pageviews.website_session_id
+	LEFT JOIN orders
+		ON website_sessions.website_session_id = orders.website_session_id
+WHERE website_pageviews.website_pageview_id >= 23504
+	AND website_sessions.created_at < '2012-07-28'
+	AND website_sessions.utm_source = 'gsearch'
+	AND website_sessions.utm_campaign = 'nonbrand'
+	AND website_pageviews.pageview_url IN ('/home', '/lander-1')
+GROUP BY website_pageviews.pageview_url;
+
+SELECT
+	MIN(website_pageview_id) AS first_test_pv
+FROM website_pageviews
+WHERE pageview_url = '/lander-1';
+
+-- First test lander-1 pageviews is 23504
+
+CREATE TEMPORARY TABLE first_test_pageviews
+SELECT
+	website_pageviews.website_session_id,
+	MIN(website_pageview_id) AS min_pageview_id
+FROM website_pageviews
+	JOIN website_sessions
+		ON website_sessions.website_session_id = website_pageviews.website_session_id
+        AND website_pageview_id >= 23504
+		AND website_pageviews.created_at < '2012-07-28'
+		AND utm_source = 'gsearch'
+		AND utm_campaign = 'nonbrand'
+GROUP BY website_pageviews.website_session_id;
+
+-- 0.0318 for /home, vs 0.0406 for /lander-1
+-- additional 0.0088 orders per session
+
+-- finding the most recent pageview for gsearch nonbrand where the traffic was sent to home
+
+SELECT
+	MAX(website_sessions.website_session_id) AS most_recent_gsearch_nonbrand_home_pageview
+FROM website_sessions
+	LEFT JOIN website_pageviews
+		ON website_sessions.website_session_id = website_pageviews.website_session_id
+WHERE utm_source = 'gsearch'
+	AND utm_campaign = 'nonbrand'
+	AND pageview_url = '/home'
+	AND website_sessions.created_at < '2012-11-27';
+
+-- max website_session_id = 17145
+-- After this session, there are no more /home landing page, and all landing page has been replaced with /lander-1
+
+SELECT
+	COUNT(website_session_id) AS sessions_since_test
+FROM website_sessions
+WHERE
+	created_at < '2012-11-27'
+	AND website_session_id >= 17145
+	AND utm_source = 'gsearch'
+	AND utm_campaign = 'nonbrand';
+
+-- 22973 sessions since test
+
+-- X 0.0088 incremental conversion = 202 incremental orders since 29 July
+-- roughly 4 months, so roughly 50 extra orders per month, awesome!
+
+-- TASK 7
+-- Let's illustrate the full conversion funnel from each of the two landing pages to orders for the same period analyzed previously (Jun 19 - Jul 28).
+
+SELECT
+	website_pageviews.pageview_url AS landing_page,
+	COUNT(DISTINCT website_pageviews.website_pageview_id) AS pageviews,
+	COUNT(DISTINCT website_sessions.website_session_id) AS sessions,
+	COUNT(DISTINCT orders.order_id) AS orders,
+	ROUND(COUNT(DISTINCT orders.order_id) / COUNT(DISTINCT website_sessions.website_session_id) * 100.0,2) AS conversion_rate
+FROM website_sessions
+	JOIN website_pageviews
+		ON website_sessions.website_session_id = website_pageviews.website_session_id
+	LEFT JOIN orders
+		ON website_sessions.website_session_id = orders.website_session_id
+WHERE website_pageviews.website_pageview_id >= 23504
+	AND website_sessions.created_at < '2012-07-28'
+	AND website_sessions.utm_source = 'gsearch'
+	AND website_sessions.utm_campaign = 'nonbrand'
+	AND website_pageviews.pageview_url IN ('/home', '/lander-1')
+GROUP BY website_pageviews.pageview_url;
